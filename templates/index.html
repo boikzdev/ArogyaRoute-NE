@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <title>ArogyaRoute NE — Smart Healthcare Routing</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="nav-brand">
+    <span class="brand-icon">🏥</span>
+    <span class="brand-text">ArogyaRoute <span class="brand-ne">NE</span></span>
+    <span class="version-tag">v3.0</span>
+  </div>
+  <div class="nav-actions">
+    <span class="nav-status" id="connectionBadge">● Connecting...</span>
+    <button class="btn-ghost" id="navLoginBtn" onclick="showPanel('auth')">Sign In</button>
+    <button class="btn-ghost hidden" id="navLogoutBtn" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- AUTH PANEL -->
+<div id="authPanel" class="panel-overlay active">
+  <div class="auth-card">
+    <div class="auth-header">
+      <span class="auth-logo">🏥</span>
+      <h1>ArogyaRoute NE</h1>
+      <p>Smart Healthcare Routing for Northeast India</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Register</button>
+    </div>
+    <div id="loginForm" class="auth-form">
+      <div class="field-group"><label>Email Address</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com"/></div>
+      <div class="field-group"><label>Password <span class="hint">(demo: any value)</span></label>
+        <input type="password" id="loginPassword" placeholder="••••••••"/></div>
+      <button class="btn-primary full-width" onclick="doLogin()">Sign In →</button>
+      <p class="auth-note">Register first, then sign in with the same email.</p>
+    </div>
+    <div id="registerForm" class="auth-form hidden">
+      <div class="field-row">
+        <div class="field-group"><label>Full Name</label>
+          <input type="text" id="regName" placeholder="Rahul Bora"/></div>
+        <div class="field-group"><label>Age</label>
+          <input type="number" id="regAge" placeholder="34" min="0" max="120"/></div>
+      </div>
+      <div class="field-group"><label>Email Address</label>
+        <input type="email" id="regEmail" placeholder="you@example.com"/></div>
+      <div class="field-group">
+        <label>Mobile Number <span class="hint">(10-digit, for OTP)</span></label>
+        <div class="phone-input-row">
+          <span class="phone-prefix">+91</span>
+          <input type="tel" id="regPhone" placeholder="9876543210" maxlength="10"/>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group"><label>Gender</label>
+          <select id="regGender">
+            <option value="">Select gender</option>
+            <option value="Male">♂ Male</option>
+            <option value="Female">♀ Female</option>
+            <option value="Other">⚧ Other</option>
+          </select>
+        </div>
+        <div class="field-group"><label>Blood Group</label>
+          <select id="regBlood">
+            <option value="">Select</option>
+            <option>A+</option><option>A−</option><option>B+</option><option>B−</option>
+            <option>AB+</option><option>AB−</option><option>O+</option><option>O−</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group"><label>Password</label>
+        <input type="password" id="regPassword" placeholder="••••••••"/></div>
+      <div class="field-group"><label>Medical History <span class="hint">(optional)</span></label>
+        <textarea id="regHistory" rows="2" placeholder="e.g. Hypertension, Diabetes…"></textarea></div>
+      <button class="btn-primary full-width" onclick="doRegister()">Create Account →</button>
+    </div>
+    <div id="authMessage" class="auth-message hidden"></div>
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<main id="mainDashboard" class="dashboard hidden">
+
+  <!-- Row 1: Profile + Triage -->
+  <section class="grid-2col">
+    <div class="card profile-card">
+      <div class="card-header"><span class="card-icon">👤</span><h2>Patient Profile</h2></div>
+      <div class="profile-body">
+        <div class="profile-avatar" id="profileAvatar">–</div>
+        <div class="profile-details">
+          <div class="profile-name" id="profileName">—</div>
+          <div class="profile-meta">
+            <span class="meta-pill" id="profileAge">Age: —</span>
+            <span class="meta-pill blood" id="profileBlood">—</span>
+            <span class="meta-pill gender" id="profileGender">—</span>
+          </div>
+          <div class="profile-phone" id="profilePhone">📱 —</div>
+          <div class="profile-history" id="profileHistory">No medical history recorded.</div>
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn-outline" onclick="showBookingsModal()">📋 My Bookings</button>
+        <button class="btn-outline" onclick="refreshProfile()">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="card triage-card">
+      <div class="card-header"><span class="card-icon">🧬</span><h2>AI Symptom Triage</h2>
+        <span class="badge ai-badge">Naive Bayes NLP</span></div>
+      <div class="triage-input-row">
+        <textarea id="symptomsInput" rows="3" placeholder="Describe symptoms in plain English…&#10;e.g. 'chest pain, shortness of breath, left arm pain'"></textarea>
+        <button class="btn-primary" onclick="runTriage()">Analyse →</button>
+      </div>
+      <div id="triageResult" class="triage-result hidden">
+        <div class="triage-primary" id="triagePrimary"></div>
+        <div class="triage-alternatives" id="triageAlternatives"></div>
+        <button class="btn-secondary mt-sm" onclick="findHospitalsForDept()">Find Hospitals →</button>
+      </div>
+      <div class="triage-spinner hidden" id="triageSpinner">
+        <span class="spinner"></span> Analysing…
+      </div>
+    </div>
+  </section>
+
+  <!-- Row 2: Specialty Grid -->
+  <section class="card specialties-card">
+    <div class="card-header"><span class="card-icon">🏥</span><h2>Specialty Quick-Select</h2>
+      <span class="hint-text">Tap a department to filter hospitals</span></div>
+    <div class="specialty-grid" id="specialtyGrid"></div>
+  </section>
+
+  <!-- Row 3: Map + Hospital List -->
+  <section class="grid-map">
+    <div class="card map-card">
+      <div class="card-header"><span class="card-icon">🗺️</span><h2>Route Map</h2>
+        <span class="badge">OpenStreetMap + OSRM</span></div>
+      <div id="mapContainer"></div>
+      <div class="map-legend" id="mapLegend">📍 Click map to set your location</div>
+      <div class="travel-info hidden" id="travelInfo">
+        <div class="travel-stat"><span class="tlabel">Distance</span><span class="tval" id="tDist">—</span></div>
+        <div class="travel-stat"><span class="tlabel">Base Time</span><span class="tval" id="tBase">—</span></div>
+        <div class="travel-stat"><span class="tlabel">Adjusted</span><span class="tval" id="tAdj">—</span></div>
+        <div class="travel-stat"><span class="tlabel">Rain mm/hr</span><span class="tval" id="tRain">—</span></div>
+        <div class="travel-stat"><span class="tlabel">Delay ×</span><span class="tval" id="tDelay">—</span></div>
+      </div>
+      <div class="landslide-warning hidden" id="landslideWarning">
+        ⚠️ HIGH LANDSLIDE RISK — Consider alternate route.
+      </div>
+    </div>
+    <div class="card hospitals-card">
+      <div class="card-header"><span class="card-icon">🏨</span><h2>Hospitals</h2>
+        <button class="btn-ghost btn-sm" onclick="loadHospitals()">↻</button></div>
+      <div id="hospitalList" class="hospital-list">
+        <div class="empty-state">Loading hospitals…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Row 4: Resource Dashboard -->
+  <section class="card resources-card">
+    <div class="card-header"><span class="card-icon">📊</span><h2>Live Resource Dashboard</h2>
+      <span class="badge live-badge">⬤ Live</span></div>
+    <div id="resourceGrid" class="resource-grid"></div>
+  </section>
+
+  <!-- Row 5: Review -->
+  <section class="card review-card">
+    <div class="card-header"><span class="card-icon">✍️</span><h2>Submit Hospital Review</h2>
+      <span class="badge ai-badge">Anti-Fraud · Decimal Ratings</span></div>
+    <div class="review-form">
+      <div class="field-row">
+        <div class="field-group"><label>Hospital</label>
+          <select id="reviewHospital">
+            <option value="GMCH">GMCH Guwahati</option>
+            <option value="SMCH">SMCH Silchar</option>
+            <option value="JMCH">JMCH Jorhat</option>
+            <option value="RIMS">RIMS Imphal</option>
+          </select>
+        </div>
+        <div class="field-group"><label>Rating <span class="hint">(half-star)</span></label>
+          <div class="star-row" id="starRow"></div>
+          <span id="ratingLabel" class="rating-live-label"></span>
+          <input type="hidden" id="reviewRating" value="0"/>
+        </div>
+      </div>
+      <div class="field-group"><label>Review Text</label>
+        <textarea id="reviewText" rows="3" placeholder="Share your honest experience…"></textarea></div>
+      <button class="btn-primary" onclick="submitReview()">Submit Review</button>
+      <div id="reviewResult" class="review-result hidden"></div>
+    </div>
+  </section>
+</main>
+
+<!-- BOOKING MODAL (hospital-level) -->
+<div id="bookingModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-header"><h3>📋 Book OPD Slot</h3>
+      <button class="modal-close" onclick="closeModal('bookingModal')">✕</button></div>
+    <div id="bookStep">
+      <div class="field-group"><label>Hospital</label>
+        <select id="bookHospital">
+          <option value="GMCH">GMCH Guwahati</option><option value="SMCH">SMCH Silchar</option>
+          <option value="JMCH">JMCH Jorhat</option><option value="RIMS">RIMS Imphal</option>
+        </select></div>
+      <div class="field-group"><label>Department</label>
+        <select id="bookDept">
+          <option value="General Medicine">General Medicine</option>
+          <option value="Cardiology">Cardiology</option><option value="Orthopedics">Orthopedics</option>
+          <option value="Pediatrics">Pediatrics</option><option value="Neurology">Neurology</option>
+          <option value="Gastroenterology">Gastroenterology</option>
+          <option value="Pulmonology">Pulmonology</option><option value="Dermatology">Dermatology</option>
+          <option value="Ophthalmology">Ophthalmology</option>
+          <option value="ENT">ENT</option><option value="Psychiatry">Psychiatry</option>
+        </select></div>
+      <div class="field-row">
+        <div class="field-group"><label>Date</label>
+          <input type="date" id="bookDate" min="" /></div>
+        <div class="field-group"><label>Time Slot</label>
+          <select id="bookSlot">
+            <option>08:00</option><option>09:00</option><option>10:00</option>
+            <option>11:00</option><option>12:00</option><option>13:00</option>
+            <option>14:00</option><option>15:00</option>
+          </select></div>
+      </div>
+      <button class="btn-primary full-width" onclick="requestOTP()">Send OTP →</button>
+    </div>
+    <div id="otpStep" class="hidden">
+      <div class="otp-info-box">
+        <div class="otp-icon">📲</div>
+        <div id="otpMessage" class="otp-message"></div>
+        <div id="otpHint" class="otp-hint"></div>
+      </div>
+      <div class="field-group"><label>Enter 6-Digit OTP</label>
+        <input type="text" id="otpInput" placeholder="______" maxlength="6"
+               class="otp-input" inputmode="numeric"/></div>
+      <div class="otp-actions">
+        <button class="btn-primary full-width" onclick="verifyOTPAndBook()">Verify & Confirm ✓</button>
+        <button class="btn-outline full-width mt-sm" onclick="requestOTP()">Resend OTP</button>
+      </div>
+    </div>
+    <div id="bookingResult" class="review-result hidden" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- MY BOOKINGS -->
+<div id="myBookingsModal" class="modal-overlay hidden">
+  <div class="modal-card wide">
+    <div class="modal-header"><h3>📋 My Bookings</h3>
+      <button class="modal-close" onclick="closeModal('myBookingsModal')">✕</button></div>
+    <div id="myBookingsList"></div>
+  </div>
+</div>
+
+<!-- DOCTOR LIST MODAL -->
+<div id="doctorListModal" class="modal-overlay hidden">
+  <div class="modal-card wide">
+    <div class="modal-header"><h3 id="doctorListTitle">Doctors</h3>
+      <button class="modal-close" onclick="closeModal('doctorListModal')">✕</button></div>
+    <div id="doctorListBody" class="doctor-list-scroll"></div>
+  </div>
+</div>
+
+<!-- DOCTOR PROFILE MODAL -->
+<div id="doctorProfileModal" class="modal-overlay hidden">
+  <div class="modal-card wide">
+    <div class="modal-header"><h3>👨‍⚕️ Doctor Profile</h3>
+      <button class="modal-close" onclick="closeModal('doctorProfileModal')">✕</button></div>
+    <div id="doctorProfileBody"></div>
+  </div>
+</div>
+
+<!-- SLOT PICKER MODAL -->
+<div id="slotPickerModal" class="modal-overlay hidden">
+  <div class="modal-card wide">
+    <div class="modal-header"><h3>🗓️ Select Appointment Slot</h3>
+      <button class="modal-close" onclick="closeModal('slotPickerModal')">✕</button></div>
+    <div id="slotDateTabs" class="date-tabs"></div>
+    <div id="slotPickerBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/js/main.js"></script>
+<script>
+  // Set min date on booking date picker to today
+  document.addEventListener("DOMContentLoaded",()=>{
+    const bd=document.getElementById("bookDate");
+    if(bd){ const t=new Date().toISOString().slice(0,10); bd.min=t; bd.value=t; }
+  });
+</script>
+</body>
+</html>
